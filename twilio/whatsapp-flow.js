@@ -1,21 +1,49 @@
+// whatsapp-flow.js
 const db = require('../db');
 const templates = require('../templates/messages');
 const { generateTicketId } = require('../utils/messaging');
+const departmentData = require('../templates/department');
 
 // Track user conversation state
 const userStates = {};
+
+// Debug mode - set to true for development
+const DEBUG_MODE = process.env.NODE_ENV === 'development';
+
+// Add this missing variable that's referenced in the department.js file
+const askForDescription = templates.askForDescription;
+const askForLandmark = templates.askForLandmark;
 
 const handleWhatsAppMessage = async (phoneNumber, message) => {
   try {
     const normalizedMsg = message.trim().toLowerCase();
 
+    if (DEBUG_MODE) {
+      console.log('=== NEW MESSAGE ===');
+      console.log('From:', phoneNumber);
+      console.log('Message:', message);
+      console.log('Current state:', userStates[phoneNumber] ? userStates[phoneNumber].process : 'No state');
+    }
+
     if (normalizedMsg === 'hello' || normalizedMsg === 'hi') {
+      return templates.welcomeMessage;
+    }
+    
+    // Check if user wants to cancel or go to menu
+    if (normalizedMsg === 'menu' || normalizedMsg === 'cancel') {
+      delete userStates[phoneNumber];
       return templates.welcomeMessage;
     }
     
     // Check if in middle of process
     if (userStates[phoneNumber]) {
-      return continueUserProcess(phoneNumber, normalizedMsg);
+      return continueUserProcess(phoneNumber, normalizedMsg, message);
+    }
+
+    // Handle status check with ticket ID (e.g., "STATUS RTK-TSA7MX")
+    if (normalizedMsg.startsWith('status ')) {
+      const ticketId = message.trim().substring(6).trim().toUpperCase(); // Extract ticket ID
+      return handleStatusCheck(phoneNumber, ticketId);
     }
 
     // Handle main commands
@@ -33,7 +61,7 @@ const handleWhatsAppMessage = async (phoneNumber, message) => {
       case 'help':
         return templates.helpMessage;
       default:
-        return templates.welcomeMessage;
+        return templates.invalidOption;
     }
   } catch (error) {
     console.error('Error handling message:', error);
@@ -45,30 +73,45 @@ const handleWhatsAppMessage = async (phoneNumber, message) => {
 // REGISTRATION FLOW
 // ========================
 const startComplaintProcess = async (phoneNumber) => {
-  const user = await getUser(phoneNumber);
-  
-  if (!user) {
-    userStates[phoneNumber] = {
-      process: 'registration',
-      step: 'name',
-      data: { phone: phoneNumber }
-    };
-    return templates.askForName;
-  }
-  
-  userStates[phoneNumber] = {
-    process: 'complaint',
-    step: 'department',
-    data: { 
-      phone: phoneNumber,
-      userId: user.user_id 
+  try {
+    const user = await getUser(phoneNumber);
+    
+    if (!user) {
+      userStates[phoneNumber] = {
+        process: 'registration',
+        step: 'name',
+        data: { phone: phoneNumber }
+      };
+      if (DEBUG_MODE) console.log('Starting registration for:', phoneNumber);
+      return templates.askForName;
     }
-  };
-  return templates.departmentList;
+    
+    userStates[phoneNumber] = {
+      process: 'complaint',
+      step: 'department',
+      data: { 
+        phone: phoneNumber,
+        userId: user.user_id
+      }
+    };
+    
+    if (DEBUG_MODE) console.log('Starting complaint for existing user:', phoneNumber);
+    
+    // Use template function instead of hardcoded list
+    return departmentData.generateDepartmentCategoryList();
+  } catch (error) {
+    console.error('Error in startComplaintProcess:', error);
+    return templates.errorMessage;
+  }
 };
 
-const handleRegistration = async (phoneNumber, message) => {
+const handleRegistration = async (phoneNumber, message, normalizedMsg) => {
   const state = userStates[phoneNumber];
+  
+  if (DEBUG_MODE) {
+    console.log('Registration step:', state.step);
+    console.log('User input:', message);
+  }
   
   switch(state.step) {
     case 'name':
@@ -85,78 +128,56 @@ const handleRegistration = async (phoneNumber, message) => {
       return templates.askForAreaType;
       
     case 'area_type':
-      if (message === '1') {
+      if (normalizedMsg === '1') {
         state.data.areaType = 'urban';
         state.step = 'urban_ward';
-        return templates.askForUrbanWard;
-      } else if (message === '2') {
+        return templates.generateWardList();
+      } else if (normalizedMsg === '2') {
         state.data.areaType = 'rural';
         state.step = 'rural_block';
-        return templates.askForRuralBlock;
+        return templates.generateBlockList();
       } else {
         return templates.invalidAreaSelection;
       }
 
     case 'urban_ward':
-      const urbanWard = parseInt(message);
-      if (isNaN(urbanWard) || urbanWard < 1 || urbanWard > 5) {
-        return templates.invalidAreaSelection;
-      }
-      state.data.ward = urbanWard;
-      state.step = 'urban_area';
-      return templates.askForUrbanArea(urbanWard);
+      return templates.handleWardSelection(phoneNumber, message, state);
+
+    case 'urban_colony':
+      return templates.handleColonyPagination(phoneNumber, message, state.data.wardNumber, state.data.currentPage || 1, state);
 
     case 'rural_block':
-      const ruralBlock = parseInt(message);
-      if (isNaN(ruralBlock) || ruralBlock < 1 || ruralBlock > 5) {
-        return templates.invalidAreaSelection;
-      }
-      
-      const blocks = ['Lakhan Majra', 'Sampla', 'Kalanaur', 'Meham', 'Rohtak'];
-      state.data.block = blocks[ruralBlock - 1];
-      state.step = 'rural_village';
-      return templates.askForRuralVillage(state.data.block);
-
-    case 'urban_area':
-      const urbanArea = parseInt(message);
-      if (isNaN(urbanArea) || urbanArea < 1 || urbanArea > 4) {
-        return templates.invalidAreaSelection;
-      }
-      
-      const areas = ['Sector', 'Market', 'Residential Colony', 'Industrial Area'];
-      state.data.area = `${areas[urbanArea - 1]} ${state.data.ward}`;
-      state.step = 'landmark';
-      return templates.askForLandmark;
+      return templates.handleBlockSelection(phoneNumber, message, state);
 
     case 'rural_village':
-      const ruralVillage = parseInt(message);
-      if (isNaN(ruralVillage) || ruralVillage < 1 || ruralVillage > 4) {
-        return templates.invalidAreaSelection;
-      }
-      
-      state.data.village = `${state.data.block} Village ${ruralVillage}`;
-      state.step = 'landmark';
-      return templates.askForLandmark;
+      // FIXED: Pass the user state correctly
+      return templates.handleVillageSelection(phoneNumber, message, state.data.block, state);
 
     case 'landmark':
       state.data.landmark = message;
       
-      // Construct full address based on area type
+      // Construct full address based on area type using the correct field names
       if (state.data.areaType === 'urban') {
-        state.data.location = `Urban: Ward ${state.data.ward}, ${state.data.area}, Landmark: ${message}`;
+        state.data.location = `${state.data.ward}, ${state.data.colony}, Landmark: ${message}`;
+        // Store colony in the area field for database
+        state.data.area = state.data.colony;
+        state.data.ward_number = state.data.wardNumber;
       } else {
-        state.data.location = `Rural: ${state.data.block} Block, ${state.data.village}, Landmark: ${message}`;
+        state.data.location = `${state.data.block} Block, ${state.data.village}, Landmark: ${message}`;
+        // Store village in both area and village fields for database
+        state.data.area = state.data.village;
+        state.data.village = state.data.village;
       }
-
+      
       try {
-        console.log('Attempting to save user with data:', state.data);
+        if (DEBUG_MODE) console.log('Saving user with data:', state.data);
         
         const savedUser = await saveUser(state.data);
         if (!savedUser || !savedUser.user_id) {
           throw new Error('Failed to save user or get user_id');
         }
-
-        console.log('Transitioning to complaint flow for user:', savedUser.user_id);
+        
+        if (DEBUG_MODE) console.log('User saved successfully:', savedUser.user_id);
         
         userStates[phoneNumber] = {
           process: 'complaint',
@@ -168,32 +189,47 @@ const handleRegistration = async (phoneNumber, message) => {
           }
         };
         
-        return templates.registrationComplete + '\n\n' + templates.departmentList;
+        // Use departmentData function instead of templates
+        return templates.registrationComplete + '\n\n' + departmentData.generateDepartmentCategoryList();
         
       } catch (error) {
         console.error('Error in location handler:', error);
         delete userStates[phoneNumber];
         return `⚠️ Error processing your request. Please start again with COMPLAINT.\n\n${templates.errorMessage}`;
       }
+          
+    default:
+      delete userStates[phoneNumber];
+      return templates.errorMessage;
   }
 };
 
 // ========================
-// COMPLAINT FLOW (remain unchanged)
+// COMPLAINT FLOW
 // ========================
-const handleComplaint = async (phoneNumber, message) => {
+const handleComplaint = async (phoneNumber, message, normalizedMsg) => {
   const state = userStates[phoneNumber];
+  
+  if (DEBUG_MODE) {
+    console.log('Complaint step:', state.step);
+    console.log('User input:', message);
+  }
   
   switch(state.step) {
     case 'department':
-      const deptId = parseInt(message);
-      if (isNaN(deptId)) {
-        return templates.invalidDepartment;
-      }
-      state.data.departmentId = deptId;
-      state.step = 'description';
-      return templates.askForDescription;
+      console.log('DEBUG: Handling department selection');
+      console.log('DEBUG: User state data:', JSON.stringify(state.data));
+      console.log('DEBUG: User input:', message);
       
+      // Use departmentData function instead of templates
+      const result = departmentData.handleDepartmentSelection(phoneNumber, message, state);
+      
+      console.log('DEBUG: Result from handleDepartmentSelection:');
+      console.log('DEBUG: Result length:', result.length);
+      console.log('DEBUG: First 100 chars:', result.substring(0, 100));
+      
+      return result;
+
     case 'description':
       state.data.description = message;
       state.step = 'location_details';
@@ -203,103 +239,141 @@ const handleComplaint = async (phoneNumber, message) => {
       state.data.locationDetails = message;
       state.step = 'confirm';
       
-      const dept = await getDepartment(state.data.departmentId);
       return templates.complaintConfirmation(
-        dept.department_name,
+        state.data.departmentName,
         state.data.description,
         state.data.locationDetails
       );
       
-   case 'confirm':
-  const confirmation = message.toLowerCase().trim();
-  
-  if (confirmation === '1' || confirmation === 'yes' || confirmation === 'y') {
-    try {
-      const ticketId = await createComplaint({
-        userId: state.data.userId,
-        phone: state.data.phone,
-        departmentId: state.data.departmentId,
-        description: state.data.description,
-        locationDetails: state.data.locationDetails
-      });
+    case 'confirm':
+      if (normalizedMsg === '1' || normalizedMsg === 'yes' || normalizedMsg === 'y') {
+        try {
+          const ticketId = await createComplaint({
+            userId: state.data.userId,
+            phone: state.data.phone,
+            departmentId: state.data.departmentId,
+            description: state.data.description,
+            locationDetails: state.data.locationDetails
+          });
 
-      delete userStates[phoneNumber];
-      const dept = await getDepartment(state.data.departmentId);
-      return templates.complaintRegistered(
-        ticketId,
-        dept.department_name,
-        state.data.locationDetails
-      );
+          if (DEBUG_MODE) console.log('Complaint created with ticket ID:', ticketId);
+          
+          delete userStates[phoneNumber];
+          return templates.complaintRegistered(
+            ticketId,
+            state.data.departmentName,
+            state.data.locationDetails
+          );
+          
+        } catch (error) {
+          console.error('Error creating complaint:', error);
+          delete userStates[phoneNumber];
+          return `⚠️ Failed to file complaint. Please try again.\n\n${templates.mainMenu}`;
+        }
+      } 
+      else if (normalizedMsg === '2' || normalizedMsg === 'no' || normalizedMsg === 'n') {
+        delete userStates[phoneNumber];
+        return templates.complaintCancelled;
+      }
+      else {
+        return templates.complaintConfirmation(
+          state.data.departmentName,
+          state.data.description,
+          state.data.locationDetails
+        );
+      }
       
-    } catch (error) {
-      console.error('Error:', error);
+    default:
       delete userStates[phoneNumber];
-      return `⚠️ Failed to file complaint. Please try again.\n\n${templates.mainMenu}`;
-    }
-  } 
-  else if (confirmation === '2' || confirmation === 'no' || confirmation === 'n') {
-    delete userStates[phoneNumber];
-    return templates.complaintCancelled;
-  }
-  else {
-    // Show confirmation again if invalid response
-    const dept = await getDepartment(state.data.departmentId);
-    return templates.complaintConfirmation(
-      dept.department_name,
-      state.data.description,
-      state.data.locationDetails
-    );
-  }
+      return templates.errorMessage;
   }
 };
 
 // ========================
-// DATABASE FUNCTIONS (remain unchanged)
+// DATABASE FUNCTIONS
 // ========================
 const getUser = async (phoneNumber) => {
-  const { rows } = await db.pool.query(
-    'SELECT * FROM users WHERE phone_number = $1',
-    [phoneNumber]
-  );
-  return rows[0];
+  try {
+    const { rows } = await db.pool.query(
+      'SELECT * FROM users WHERE phone_number = $1',
+      [phoneNumber]
+    );
+    return rows[0];
+  } catch (error) {
+    console.error('Error getting user:', error);
+    return null;
+  }
 };
 
 const saveUser = async (userData) => {
   try {
-    console.log('Saving user:', userData);
+    if (DEBUG_MODE) console.log('Saving user:', userData);
+    
+    // Prepare data based on your actual database schema
+    let area = '';
+    let village = '';
+    let ward_number = '';
+    
+    if (userData.areaType === 'urban') {
+      // For urban areas, use colony as area and ward number
+      area = userData.colony || '';
+      ward_number = userData.wardNumber || '';
+    } else if (userData.areaType === 'rural') {
+      // For rural areas, use village as area
+      area = userData.village || '';
+      village = userData.village || '';
+    }
+    
+    const userDataWithDefaults = {
+      phone: userData.phone || '',
+      name: userData.name || '',
+      email: userData.email || '',
+      location: userData.location || '',
+      area_type: userData.areaType || '',
+      ward: userData.ward ? parseInt(userData.ward.replace('Ward-', '')) || 0 : 0,
+      block: userData.block || '',
+      area: area,
+      village: village,
+      ward_number: ward_number,
+      landmark: userData.landmark || ''
+    };
+    
+    if (DEBUG_MODE) console.log('User data with defaults:', userDataWithDefaults);
     
     const { rows } = await db.pool.query(
       `INSERT INTO users (
         phone_number, name, email, location,
-        area_type, ward, block, area, village, landmark
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        area_type, ward, block, area, village, ward_number, landmark
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (phone_number)
        DO UPDATE SET 
-         name = $2, 
-         email = $3, 
-         location = $4,
-         area_type = $5,
-         ward = $6,
-         block = $7,
-         area = $8,
-         village = $9,
-         landmark = $10
+         name = EXCLUDED.name, 
+         email = EXCLUDED.email, 
+         location = EXCLUDED.location,
+         area_type = EXCLUDED.area_type,
+         ward = EXCLUDED.ward,
+         block = EXCLUDED.block,
+         area = EXCLUDED.area,
+         village = EXCLUDED.village,
+         ward_number = EXCLUDED.ward_number,
+         landmark = EXCLUDED.landmark
        RETURNING user_id, phone_number, name`,
       [
-        userData.phone, 
-        userData.name, 
-        userData.email, 
-        userData.location,
-        userData.areaType,
-        userData.ward,
-        userData.block,
-        userData.area,
-        userData.village,
-        userData.landmark
+        userDataWithDefaults.phone, 
+        userDataWithDefaults.name, 
+        userDataWithDefaults.email, 
+        userDataWithDefaults.location,
+        userDataWithDefaults.area_type,
+        userDataWithDefaults.ward,
+        userDataWithDefaults.block,
+        userDataWithDefaults.area,
+        userDataWithDefaults.village,
+        userDataWithDefaults.ward_number,
+        userDataWithDefaults.landmark
       ]
     );
     
-    console.log('User saved successfully:', rows[0]);
+    if (DEBUG_MODE) console.log('User saved successfully:', rows[0]);
     return rows[0];
   } catch (error) {
     console.error('Error saving user:', error);
@@ -307,12 +381,10 @@ const saveUser = async (userData) => {
   }
 };
 
+// Update the getDepartment function to use local JSON
 const getDepartment = async (deptId) => {
-  const { rows } = await db.pool.query(
-    'SELECT * FROM departments WHERE department_id = $1',
-    [deptId]
-  );
-  return rows[0];
+  // Use local JSON data instead of database query
+  return departmentData.getDepartmentById(deptId);
 };
 
 const createComplaint = async (complaintData) => {
@@ -322,6 +394,10 @@ const createComplaint = async (complaintData) => {
     
     const ticketId = generateTicketId();
     const dept = await getDepartment(complaintData.departmentId);
+
+    if (!dept) {
+      throw new Error(`Department with ID ${complaintData.departmentId} not found`);
+    }
 
     const result = await client.query(
       `INSERT INTO complaints (
@@ -341,8 +417,7 @@ const createComplaint = async (complaintData) => {
     );
 
     await client.query('COMMIT');
-    console.log('Complaint successfully created:', result.rows[0]);
-    return result.rows[0].ticket_id;
+    if (DEBUG_MODE) console.log('Complaint successfully created:', result.rows[0]);
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Failed to create complaint:', error);
@@ -353,21 +428,21 @@ const createComplaint = async (complaintData) => {
 };
 
 // ========================
-// HELPER FUNCTIONS (remain unchanged)
+// HELPER FUNCTIONS
 // ========================
-const continueUserProcess = async (phoneNumber, message) => {
+const continueUserProcess = async (phoneNumber, normalizedMsg, originalMsg) => {
   const state = userStates[phoneNumber];
   
   if (state.process === 'registration') {
-    return handleRegistration(phoneNumber, message);
+    return handleRegistration(phoneNumber, originalMsg, normalizedMsg);
   }
   
   if (state.process === 'complaint') {
-    return handleComplaint(phoneNumber, message);
+    return handleComplaint(phoneNumber, originalMsg, normalizedMsg);
   }
   
   if (state.process === 'status_check') {
-    return handleStatusCheck(phoneNumber, message);
+    return handleStatusCheck(phoneNumber, originalMsg);
   }
   
   delete userStates[phoneNumber];
@@ -386,10 +461,16 @@ const askForTicketId = (phoneNumber) => {
   return templates.askForTicketId;
 };
 
-const handleStatusCheck = async (phoneNumber, message) => {
-  const ticketId = message.trim().toUpperCase();
-
+const handleStatusCheck = async (phoneNumber, ticketId) => {
   try {
+    // Clean up the ticket ID
+    ticketId = ticketId.trim().toUpperCase();
+    
+    // Validate ticket format
+    if (!/^RTK-[A-Z0-9]{6}$/.test(ticketId)) {
+      return templates.invalidTicketFormat;
+    }
+
     const { rows } = await db.pool.query(`
       SELECT c.*, d.*, u.phone_number
       FROM complaints c
@@ -399,14 +480,7 @@ const handleStatusCheck = async (phoneNumber, message) => {
     `, [ticketId]);
 
     if (rows.length === 0) {
-      if (/^RTK-[A-Z0-9]{6}$/.test(ticketId)) {
-        return `📭 Ticket ${ticketId} not found in our system.\n\n` +
-               `Please verify:\n` +
-               `1. You entered the correct Ticket ID\n` +
-               `2. The complaint was filed within last 6 months\n` +
-               `3. You're using the same phone number used to file the complaint`;
-      }
-      return templates.invalidTicketFormat;
+      return templates.statusNotFound(ticketId);
     }
 
     if (rows[0].phone_number !== phoneNumber) {
@@ -419,19 +493,13 @@ const handleStatusCheck = async (phoneNumber, message) => {
     return templates.statusUpdate(
       complaint.ticket_id,
       complaint.status,
-      complaint.description,
-      complaint.location_details,
-      {
-        department_name: complaint.department_name,
-        description: complaint.description,
-        email: complaint.email
-      },
-      complaint.created_at,
-      complaint.updated_at
+      complaint.department_name,
+      complaint.resolution_notes || '',
+      complaint.assigned_officer || 'Not assigned yet'
     );
 
   } catch (error) {
-    console.error('Database error:', error);
+    console.error('Database error in status check:', error);
     return `🛠️ System Maintenance\n\n` +
            `Our complaint system is temporarily unavailable.\n` +
            `Engineers have been notified. Please try again later.`;

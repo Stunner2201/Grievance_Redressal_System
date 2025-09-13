@@ -7,13 +7,15 @@ st.set_page_config(
     page_icon="📋"
 )
 
-# Sidebar navigation
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Complaints", "Departments"])
+# Home Page Content
+# Display logo (make sure "logo.png" is in your project folder or adjust path)
+# st.image("logo.png", width=120)
 
-if page == "Complaints":
-    from pages import Complaints
-    st.rerun()  # Force page reload
-elif page == "Departments":
-    from pages import Departments
-    st.rerun()
+# Title
+st.markdown("## **Grievance Redressal System**")
+
+# Short welcome message
+st.markdown("""
+Welcome to the Admin Panel.  
+Use the sidebar to navigate to **Complaints** and **Departments**.
+""")

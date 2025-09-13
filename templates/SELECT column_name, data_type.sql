@@ -1,0 +1,2 @@
+DELETE FROM USERS
+WHERE phone_number = '+918767557713';
