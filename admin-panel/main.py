@@ -7,15 +7,21 @@ st.set_page_config(
     page_icon="📋"
 )
 
-# Home Page Content
-# Display logo (make sure "logo.png" is in your project folder or adjust path)
-# st.image("logo.png", width=120)
+# Use columns to center the content
+# We create three columns: a blank one on the left, a central one for content,
+# and another blank one on the right. The central column is wider.
+col1, col2, col3 = st.columns([1, 3, 1])
 
-# Title
-st.markdown("## **Grievance Redressal System**")
+# Content is placed inside the central column (col2)
+with col2:
+    # Display logo
+    st.image("logo.jpeg", width=500)
 
-# Short welcome message
-st.markdown("""
-Welcome to the Admin Panel.  
-Use the sidebar to navigate to **Complaints** and **Departments**.
-""")
+    # Title
+    st.markdown("## **Grievance Redressal System**")
+
+    # Short welcome message
+    st.markdown("""
+    Welcome to the Admin Panel.  
+    Use the sidebar to navigate to **Complaints** and **Departments**.
+    """)

@@ -924,7 +924,7 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const absoluteDeptNumber = startIndex + deptNumber;
     
-    if (dept极端的Number >= 1 && deptNumber <= departmentsList.length && absoluteDeptNumber <= departmentsList.length) {
+    if (deptNumber >= 1 && deptNumber <= departmentsList.length && absoluteDeptNumber <= departmentsList.length) {
       const selectedDept = departmentsList[absoluteDeptNumber - 1];
       userState.data.departmentId = selectedDept.department_id;
       userState.data.departmentName = selectedDept.department_name;

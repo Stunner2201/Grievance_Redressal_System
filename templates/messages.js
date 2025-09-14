@@ -1,5 +1,3 @@
-// messages.js
-
 // Import department data from local JSON
 const departmentData = require('./department');
 
@@ -606,7 +604,7 @@ const shortenColonyName = (name) => {
 
 // Function to generate ward list message (simplified to just numbers)
 const generateWardList = () => {
-  return `🏙️ *Ward Selection*\n\nPlease select your ward number (1-22):\n\n` +
+  return ` *Ward Selection*\n\nPlease select your ward number (1-22):\n\n` +
     `Example: Type "5" for Ward-5\n\n` +
     `Reply with the *ward number* between 1-22`;
 };
@@ -633,7 +631,7 @@ const handleWardSelection = (phoneNumber, message, userState) => {
 
 // Function to generate invalid ward message
 const generateInvalidWard = () => {
-  return `⚠️ *Invalid Ward Selection*\n\n` +
+  return ` *Invalid Ward Selection*\n\n` +
     `Please select a ward number between 1-22\n\n` +
     `Example: Type "5" for Ward-5`;
 };
@@ -642,7 +640,7 @@ const generateInvalidWard = () => {
 const generateColonyList = (wardNumber, page = 1) => {
   const colonies = wardColonies[wardNumber] || [];
   if (colonies.length === 0) {
-    return `❌ *No Colonies Found*\n\nNo colonies found for Ward-${wardNumber}.\n\nPlease contact support.`;
+    return ` *No Colonies Found*\n\nNo colonies found for Ward-${wardNumber}.\n\nPlease contact support.`;
   }
   
   // Special handling for wards with many colonies (9, 17, 18, 21)
@@ -650,7 +648,7 @@ const generateColonyList = (wardNumber, page = 1) => {
   
   if (largeWards.includes(wardNumber)) {
     // Show all colonies on one page for large wards
-    let message = `🏘️ *Ward-${wardNumber} Colonies* (${colonies.length} total)\n\n`;
+    let message = ` *Ward-${wardNumber} Colonies* (${colonies.length} total)\n\n`;
     message += `Please select your colony:\n\n`;
     
     colonies.forEach((colony, index) => {
@@ -715,8 +713,11 @@ const generateColonyList = (wardNumber, page = 1) => {
   const endIndex = Math.min(startIndex + itemsPerPage, colonies.length);
   const currentColonies = colonies.slice(startIndex, endIndex);
   
-  let message = `🏘️ *Colony Selection for Ward-${wardNumber}* (Page ${page}/${totalPages})\n\n`;
-  message += `Please select your colony:\n\n`;
+  let message = ` *Colony Selection for Ward-${wardNumber}*`;
+  if (totalPages > 1) {
+    message += ` (Page ${page}/${totalPages})`;
+  }
+  message += `\n\n`;
   
   currentColonies.forEach((colony, index) => {
     const shortColony = shortenColonyName(colony);
@@ -779,7 +780,7 @@ const generateInvalidColony = (wardNumber, currentPage = 1) => {
   // Special handling for large wards
   const largeWards = ["9", "17", "18", "21"];
   if (largeWards.includes(wardNumber)) {
-    return `⚠️ *Invalid Selection*\n\n` +
+    return ` *Invalid Selection*\n\n` +
       `Please select a colony number (1-${colonies.length})\n\n` +
       `Current ward: Ward-${wardNumber}`;
   }
@@ -788,7 +789,7 @@ const generateInvalidColony = (wardNumber, currentPage = 1) => {
   const itemsPerPage = 15;
   const totalPages = Math.ceil(colonies.length / itemsPerPage);
   
-  return `⚠️ *Invalid Selection*\n\n` +
+  return ` *Invalid Selection*\n\n` +
     `Please select a colony number (1-${colonies.length})`;
 };
 
@@ -798,7 +799,7 @@ const generateInvalidColony = (wardNumber, currentPage = 1) => {
 
 // Function to generate block list message
 const generateBlockList = () => {
-  return `🌄 *Block Selection*\n\nPlease select your block:\n\n` +
+  return ` *Block Selection*\n\nPlease select your block:\n\n` +
     blocks.map((block, idx) => `${idx + 1}. ${block}`).join("\n") +
     `\n\nReply with the *block number* (1-${blocks.length})`;
 };
@@ -823,7 +824,7 @@ const handleBlockSelection = (phoneNumber, message, userState) => {
 
 // Function to generate invalid block message
 const generateInvalidBlock = () => {
-  return `⚠️ *Invalid Block Selection*\n\n` +
+  return ` *Invalid Block Selection*\n\n` +
     `Please select from these options (1-${blocks.length}):\n\n` +
     blocks.map((block, idx) => `${idx + 1}. ${block}`).join("\n") +
     `\n\nReply with number only (1-${blocks.length})`;
@@ -833,10 +834,10 @@ const generateInvalidBlock = () => {
 const generateVillageList = (block) => {
   const villages = blockVillages[block] || [];
   if (villages.length === 0) {
-    return `❌ *No Villages Found*\n\nNo villages found for ${block}.\n\nPlease contact support.`;
+    return ` *No Villages Found*\n\nNo villages found for ${block}.\n\nPlease contact support.`;
   }
   
-  let message = `🏡 *Village Selection for ${block} Block* (${villages.length} villages)\n\n`;
+  let message = ` *Village Selection for ${block} Block* (${villages.length} villages)\n\n`;
   message += `Please select your village:\n\n`;
   
   villages.forEach((village, index) => {
@@ -870,7 +871,7 @@ const handleVillageSelection = (phoneNumber, message, block, userState) => {
 // Function to generate invalid village message
 const generateInvalidVillage = (block) => {
   const villages = blockVillages[block] || [];
-  return `⚠️ *Invalid Selection*\n\n` +
+  return ` *Invalid Selection*\n\n` +
     `Please select a village number (1-${villages.length})\n\n` +
     `Current block: ${block}`;
 };
@@ -883,7 +884,7 @@ const generateInvalidVillage = (block) => {
 const generateDepartmentCategoryList = () => {
   const categories = departmentData.getAllCategories();
   
-  let message = `🏢 *Department Categories*\n\n`;
+  let message = ` *Department Categories*\n\n`;
   message += `Please select a category:\n\n`;
   
   categories.forEach(category => {
@@ -898,7 +899,7 @@ const generateDepartmentCategoryList = () => {
 // Function to generate department list for a specific category
 const generateDepartmentListForCategory = (categoryId, page = 1) => {
   const category = departmentData.departmentCategories[categoryId];
-  if (!category) return `❌ Invalid category selection`;
+  if (!category) return ` Invalid category selection`;
   
   const departments = departmentData.getDepartmentsByCategory(categoryId);
   const itemsPerPage = 10;
@@ -907,7 +908,11 @@ const generateDepartmentListForCategory = (categoryId, page = 1) => {
   const endIndex = Math.min(startIndex + itemsPerPage, departments.length);
   const currentDepartments = departments.slice(startIndex, endIndex);
   
-  let message = `🏢 ${category.name} (Page ${page}/${totalPages})\n\n`;
+  let message = ` ${category.name}`;
+  if (totalPages > 1) {
+    message += ` (Page ${page}/${totalPages})`;
+  }
+  message += `\n\n`;
   
   currentDepartments.forEach((dept, index) => {
     message += `${startIndex + index + 1}. ${dept.department_name}\n`;
@@ -921,6 +926,8 @@ const generateDepartmentListForCategory = (categoryId, page = 1) => {
 };
 
 // Function to handle department selection with categories
+// Function to handle department selection with categories
+// Function to handle department selection with categories
 const handleDepartmentSelection = (phoneNumber, message, userState) => {
   const normalizedMsg = message.trim();
   
@@ -931,7 +938,7 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
       userState.data.currentPage = 1;
       return generateDepartmentListForCategory(normalizedMsg, 1);
     } else {
-      return `❌ Invalid category. Please select 1-9.\n\n` + generateDepartmentCategoryList();
+      return ` Invalid category. Please select 1-9.\n\n` + generateDepartmentCategoryList();
     }
   }
   
@@ -954,9 +961,12 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
   else if (!isNaN(normalizedMsg)) {
     const deptNumber = parseInt(normalizedMsg);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const absoluteDeptNumber = startIndex + deptNumber;
     
-    if (deptNumber >= 1 && deptNumber <= departments.length && absoluteDeptNumber <= departments.length) {
+    // CORRECTED LINE - removed corrupted variable name
+    // const absoluteDeptNumber = startIndex + deptNumber;
+    const absoluteDeptNumber=startIndex+deptNumber;
+    
+    if (deptNumber >= 1 && deptNumber <= itemsPerPage && absoluteDeptNumber <= departments.length) {
       const selectedDept = departments[absoluteDeptNumber - 1];
       userState.data.departmentId = selectedDept.department_id;
       userState.data.departmentName = selectedDept.department_name;
@@ -965,12 +975,11 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
     }
   }
   
-  return `❌ Invalid selection. Please choose a department number.`;
+  return ` Invalid selection. Please choose a department number between 1 and ${Math.min(itemsPerPage, departments.length - startIndex)}.`;
 };
-
 // Function to generate invalid category message
 const generateInvalidCategory = () => {
-  return `⚠️ *Invalid Category Selection*\n\n` +
+  return ` *Invalid Category Selection*\n\n` +
     `Please select from these options (1-9):\n\n` +
     generateDepartmentCategoryList();
 };
@@ -978,20 +987,20 @@ const generateInvalidCategory = () => {
 // ========================
 // MAIN INTERFACE MESSAGES
 // ========================
-const welcomeMessage = `🏛️ *Welcome to Rohtak Grievance Redressal System*\n\nPlease choose an option:\n\n` +
+const welcomeMessage = ` *Welcome to Rohtak Grievance Redressal System*\n\nPlease choose an option:\n\n` +
   `1️⃣ *COMPLAINT* - File new grievance\n` +
   `2️⃣ *STATUS* - Check complaint status\n` +
   `3️⃣ *FAQ* - Frequently asked questions\n` +
   `4️⃣ *HELP* - Show help menu`;
 
-const helpMessage = `🆘 *Help Guide*\n\nAvailable commands:\n\n` +
+const helpMessage = ` *Help Guide*\n\nAvailable commands:\n\n` +
   `📌 *COMPLAINT* - Register new issue\n` +
   `📌 *STATUS <ticket-id>* - Track complaint\n` +
   `📌 *FAQ* - Common questions\n` +
   `📌 *HELP* - Show this menu\n\n` +
   `📌 *MENU* - Return to main menu`;
 
-const mainMenu = `📋 *Main Menu*\n\n` +
+const mainMenu = ` *Main Menu*\n\n` +
   `1️⃣ File new complaint\n` +
   `2️⃣ Check status\n` +
   `3️⃣ View FAQs\n` +
@@ -1000,15 +1009,15 @@ const mainMenu = `📋 *Main Menu*\n\n` +
 // ========================
 // USER REGISTRATION FLOW
 // ========================
-const askForName = `👤 *User Registration*\n\nPlease provide your:\n\n` +
-  `📛 *Full Name* (as per ID proof)\n` +
+const askForName = ` *User Registration*\n\nPlease provide your:\n\n` +
+  ` *Full Name* (as per ID proof)\n` +
   `Example: "Rahul Sharma"`;
 
-const askForEmail = `📧 *Contact Information*\n\nPlease provide your:\n\n` +
-  `✉️ *Email Address* (for updates)\n` +
+const askForEmail = ` *Contact Information*\n\nPlease provide your:\n\n` +
+  ` *Email Address* (for updates)\n` +
   `Example: "user@example.com"`;
 
-const invalidEmail = `❌ *Invalid Email Format*\n\n` +
+const invalidEmail = ` *Invalid Email Format*\n\n` +
   `Please provide a valid email address:\n` +
   `• Must contain @ symbol\n` +
   `• Must have domain (e.g., .com)\n` +
@@ -1021,7 +1030,7 @@ const registrationComplete = `✅ *Registration Successful!*\n\n` +
 // ========================
 // COMPLAINT FILING FLOW
 // ========================
-const askForDescription = `📝 *Complaint Details*\n\n` +
+const askForDescription = ` *Complaint Details*\n\n` +
   `Please describe your issue *in detail*:\n\n` +
   `ℹ️ Include:\n` +
   `- Nature of problem\n` +
@@ -1029,7 +1038,7 @@ const askForDescription = `📝 *Complaint Details*\n\n` +
   `- Affected areas\n\n` +
   `Example: "Street light not working for 5 days near Sector 14 market"`;
 
-const askForExactLocation = `📍 *Precise Location*\n\nPlease provide *exact location* details:\n\n` +
+const askForExactLocation = ` *Precise Location*\n\nPlease provide *exact location* details:\n\n` +
   `ℹ️ Include:\n` +
   `- House/Building number\n` +
   `- Nearby landmarks\n` +
@@ -1039,29 +1048,29 @@ const askForExactLocation = `📍 *Precise Location*\n\nPlease provide *exact lo
 const complaintConfirmation = (department, description, location) =>
   `🔍 *Complaint Verification*\n\n` +
   `Please confirm your complaint details:\n\n` +
-  `🏢 *Department*: ${department}\n` +
-  `📝 *Issue*: ${description}\n` +
-  `📍 *Location*: ${location}\n\n` +
+  ` *Department*: ${department}\n` +
+  ` *Issue*: ${description}\n` +
+  ` *Location*: ${location}\n\n` +
   `Reply with:\n` +
   `1️⃣ *YES* - To submit complaint\n` +
   `2️⃣ *NO* - To start over`;
 
 const complaintRegistered = (ticketId, department, location) =>
   `✅ *Complaint Registered!*\n\n` +
-  `📄 Ticket ID: *${ticketId}*\n` +
-  `🏢 Department: *${department}*\n` +
-  `📍 Location: *${location}*\n\n` +
-  `🔔 You will receive updates on this number.\n` +
-  `📌 To check status, send:\n"*STATUS ${ticketId}*"`;
+  ` Ticket ID: *${ticketId}*\n` +
+  ` Department: *${department}*\n` +
+  ` Location: *${location}*\n\n` +
+  ` You will receive updates on this number.\n` +
+  ` To check status, send:\n"*STATUS ${ticketId}*"`;
 
-const complaintCancelled = `❌ *Complaint Cancelled*\n\n` +
+const complaintCancelled = ` *Complaint Cancelled*\n\n` +
   `The complaint process has been terminated.\n\n` +
   `To start over, send:\n*COMPLAINT*`;
 
 // ========================
 // STATUS CHECK FLOW
 // ========================
-const askForTicketId = `🔎 *Check Complaint Status*\n\n` +
+const askForTicketId = ` *Check Complaint Status*\n\n` +
   `Please enter your *RTK Ticket ID* (Example: RTK-J82TXM):\n\n` +
   `📍 *Where to find your Ticket ID:*\n` +
   `- In your complaint confirmation message\n` +
@@ -1069,7 +1078,7 @@ const askForTicketId = `🔎 *Check Complaint Status*\n\n` +
   `📌 Type "MENU" to return to main menu`;
 
 const statusUpdate = (ticketId, status, department, notes, officer) => {
-  const base = `📢 *Status Update*\n\nTicket: #${ticketId}\nDepartment: ${department}\n`;
+  const base = ` *Status Update*\n\nTicket: #${ticketId}\nDepartment: ${department}\n`;
   const statusMessages = {
     'Pending': `${base}Status: ⏳ Pending\n\nWe've received your complaint.`,
     'In Progress': `${base}Status: 🛠️ In Progress\n\nOfficer: ${officer}\n\n${notes || ''}`,
@@ -1091,7 +1100,7 @@ const statusNotFound = (ticketId) =>
   `2. Contact support at support@rohtak.gov.in\n` +
   `3. Return to main menu`;
 
-const invalidTicketFormat = `⚠️ *Invalid Ticket Format*\n\n` +
+const invalidTicketFormat = ` *Invalid Ticket Format*\n\n` +
   `Rohtak Ticket IDs follow this format:\n\n` +
   `• Starts with "RTK-"\n` +
   `• Followed by 6 characters (letters/numbers)\n` +
@@ -1102,7 +1111,7 @@ const invalidTicketFormat = `⚠️ *Invalid Ticket Format*\n\n` +
 // ========================
 // FAQ SECTION
 // ========================
-const faqResponse = `❓ *Frequently Asked Questions*\n\n` +
+const faqResponse = ` *Frequently Asked Questions*\n\n` +
   `Q: How long for resolution?\n` +
   `A: 3-7 working days (varies by department)\n\n` +
   `Q: Can officers contact me?\n` +
@@ -1117,36 +1126,36 @@ const faqResponse = `❓ *Frequently Asked Questions*\n\n` +
 // ========================
 // SYSTEM MESSAGES
 // ========================
-const errorMessage = `⚠️ *System Error*\n\n` +
+const errorMessage = ` *System Error*\n\n` +
   `We're experiencing technical difficulties.\n` +
   `Please try again later or contact support:\n` +
   `📞 1800-123-4567\n` +
   `✉️ support@rohtak.gov.in`;
 
-const sessionTimeout = `⏱️ *Session Expired*\n\n` +
+const sessionTimeout = ` *Session Expired*\n\n` +
   `Your previous session has timed out.\n\n` +
   `Please start again by sending:\n*COMPLAINT*`;
 
-const invalidOption = `❌ *Invalid Option*\n\n` +
+const invalidOption = ` *Invalid Option*\n\n` +
   `Please select from the available options.\n\n` +
-  `📌 Send "HELP" for guidance\n` +
-  `📌 Send "MENU" for main menu`;
+  ` Send "HELP" for guidance\n` +
+  ` Send "MENU" for main menu`;
 
 // ========================
 // AREA FLOW (UPDATED FOR WARD/COLONY AND BLOCK/VILLAGE)
 // ========================
-const askForAreaType = `📍 *Area Type*\n\nPlease select your area type:\n\n` +
+const askForAreaType = ` *Area Type*\n\nPlease select your area type:\n\n` +
   `1️⃣ Urban (Municipal Corporation area)\n` +
   `2️⃣ Rural (Village area)\n\n` +
   `Reply with *1* or *2*`;
 
-const askForLandmark = `🗺️ *Final Location Details*\n\nPlease provide:\n\n` +
+const askForLandmark = ` *Final Location Details*\n\nPlease provide:\n\n` +
   `📍 Nearby landmark or house details\n` +
   `Example: "Near Hanuman Temple" or "House No. 123"`;
 
-const invalidAreaSelection = `⚠️ *Invalid Selection*\n\n` +
+const invalidAreaSelection = ` *Invalid Selection*\n\n` +
   `Please choose from the provided options only\n\n` +
-  `📌 Type "MENU" to cancel registration`;
+  ` Type "MENU" to cancel registration`;
 
 // ========================
 // MODULE EXPORTS
