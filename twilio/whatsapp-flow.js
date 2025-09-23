@@ -246,31 +246,39 @@ const handleComplaint = async (phoneNumber, message, normalizedMsg) => {
       );
       
     case 'confirm':
-      if (normalizedMsg === '1' || normalizedMsg === 'yes' || normalizedMsg === 'y') {
-        try {
-          const ticketId = await createComplaint({
-            userId: state.data.userId,
-            phone: state.data.phone,
-            departmentId: state.data.departmentId,
-            description: state.data.description,
-            locationDetails: state.data.locationDetails
-          });
+  if (normalizedMsg === '1' || normalizedMsg === 'yes' || normalizedMsg === 'y') {
+    try {
+      console.log('DEBUG: Before createComplaint call');
+      const ticketId = await createComplaint({
+        userId: state.data.userId,
+        phone: state.data.phone,
+        departmentId: state.data.departmentId,
+        description: state.data.description,
+        locationDetails: state.data.locationDetails
+      });
 
-          if (DEBUG_MODE) console.log('Complaint created with ticket ID:', ticketId);
-          
-          delete userStates[phoneNumber];
-          return templates.complaintRegistered(
-            ticketId,
-            state.data.departmentName,
-            state.data.locationDetails
-          );
-          
-        } catch (error) {
-          console.error('Error creating complaint:', error);
-          delete userStates[phoneNumber];
-          return `⚠️ Failed to file complaint. Please try again.\n\n${templates.mainMenu}`;
-        }
-      } 
+      console.log('DEBUG: After createComplaint call, ticketId:', ticketId);
+      console.log('DEBUG: Type of ticketId:', typeof ticketId);
+      
+      if (DEBUG_MODE) console.log('Complaint created with ticket ID:', ticketId);
+      
+      delete userStates[phoneNumber];
+      
+      const response = templates.complaintRegistered(
+        ticketId,
+        state.data.departmentName,
+        state.data.locationDetails
+      );
+      
+      console.log('DEBUG: Response to be sent:', response);
+      return response;
+      
+    } catch (error) {
+      console.error('Error creating complaint:', error);
+      delete userStates[phoneNumber];
+      return `⚠️ Failed to file complaint. Please try again.\n\n${templates.mainMenu}`;
+    }
+  }
       else if (normalizedMsg === '2' || normalizedMsg === 'no' || normalizedMsg === 'n') {
         delete userStates[phoneNumber];
         return templates.complaintCancelled;
@@ -417,7 +425,13 @@ const createComplaint = async (complaintData) => {
     );
 
     await client.query('COMMIT');
-    if (DEBUG_MODE) console.log('Complaint successfully created:', result.rows[0]);
+    
+    const createdComplaint = result.rows[0];
+    if (DEBUG_MODE) console.log('Complaint successfully created:', createdComplaint);
+    
+    // ✅ FIX: Return the ticket ID from the database result
+    return createdComplaint.ticket_id;
+    
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Failed to create complaint:', error);
