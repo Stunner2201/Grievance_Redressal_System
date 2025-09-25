@@ -1,4 +1,4 @@
-const departments =[
+const departments = [
   {
     "department_id": 6,
     "department_name": "CADA",
@@ -399,7 +399,6 @@ const departments =[
     "email": null,
     "created_at": "2025-08-31 04:03:17.591182"
   },
-  
   {
     "department_id": 56,
     "department_name": "National Insurance Rohtak",
@@ -656,10 +655,7 @@ const departments =[
     "email": null,
     "created_at": "2025-08-31 04:03:17.591182"
   }
-
-]
-
-// Add this to your templates/department.js file
+];
 
 // Department categories
 const departmentCategories = {
@@ -815,59 +811,27 @@ const shortenDepartmentName = (name) => {
   return shortened;
 };
 
-// Function to generate department list for a specific category (single page for categories 3, 6, 9)
-const generateDepartmentListForCategory = (categoryId, page = 1) => {
+// Function to generate department list for a specific category (NO PAGINATION)
+const generateDepartmentListForCategory = (categoryId) => {
   const category = departmentCategories[categoryId];
   if (!category) return `❌ Invalid category selection`;
   
   const departmentsList = getDepartmentsByCategory(categoryId);
   
-  // Special handling for categories 3, 6, 9 - show all on one page
-  const singlePageCategories = ["3", "6", "9"];
+  let message = `🏢 ${category.name}\n\n`;
+  message += `Please select your department:\n\n`;
   
-  if (singlePageCategories.includes(categoryId)) {
-    let message = `🏢 ${category.name}\n\n`;
-    message += `Please select your department:\n\n`;
-    
-    departmentsList.forEach((dept, index) => {
-      const shortDept = shortenDepartmentName(dept.department_name);
-      message += `${index + 1}. ${shortDept}\n`;
-    });
-    
-    message += `\nReply with the *department number*`;
-    
-    return message;
-  }
-  
-  // For other categories, use pagination
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(departmentsList.length / itemsPerPage);
-  const startIndex = (page - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, departmentsList.length);
-  const currentDepartments = departmentsList.slice(startIndex, endIndex);
-  
-  let message = `🏢 ${category.name} (Page ${page}/${totalPages})\n\n`;
-  
-  currentDepartments.forEach((dept, index) => {
-    message += `${startIndex + index + 1}. ${dept.department_name}\n`;
+  departmentsList.forEach((dept, index) => {
+    const shortDept = shortenDepartmentName(dept.department_name);
+    message += `${index + 1}. ${shortDept}\n`;
   });
   
-  message += `\n`;
-  
-  if (page > 1) {
-    message += `⬅️ PREV - Previous page\n`;
-  }
-  
-  if (page < totalPages) {
-    message += `➡️ NEXT - Next page\n`;
-  }
-  
-  message += `\nReply with the *department number* or *PREV/NEXT*`;
+  message += `\nReply with the *department number*`;
   
   return message;
 };
 
-// Function to handle department selection with categories
+// Function to handle department selection with categories (NO PAGINATION)
 const handleDepartmentSelection = (phoneNumber, message, userState) => {
   const normalizedMsg = message.trim();
   
@@ -875,8 +839,7 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
   if (!userState.data.selectedCategory) {
     if (departmentCategories[normalizedMsg]) {
       userState.data.selectedCategory = normalizedMsg;
-      userState.data.currentPage = 1;
-      return generateDepartmentListForCategory(normalizedMsg, 1);
+      return generateDepartmentListForCategory(normalizedMsg);
     } else {
       return `❌ Invalid category. Please select 1-9.\n\n` + generateDepartmentCategoryList();
     }
@@ -884,48 +847,11 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
   
   // If we're selecting a department from a category (second step)
   const departmentsList = getDepartmentsByCategory(userState.data.selectedCategory);
-  const currentPage = userState.data.currentPage || 1;
   
-  // Special handling for categories 3, 6, 9 - no pagination
-  const singlePageCategories = ["3", "6", "9"];
-  
-  if (singlePageCategories.includes(userState.data.selectedCategory)) {
-    // Handle department selection for single page categories
-    if (!isNaN(normalizedMsg)) {
-      const deptNumber = parseInt(normalizedMsg);
-      if (deptNumber >= 1 && deptNumber <= departmentsList.length) {
-        const selectedDept = departmentsList[deptNumber - 1];
-        userState.data.departmentId = selectedDept.department_id;
-        userState.data.departmentName = selectedDept.department_name;
-        userState.step = 'description';
-        return "📝 *Complaint Details*\n\nPlease describe your issue *in detail*:\n\nℹ️ Include:\n- Nature of problem\n- Duration of issue\n- Affected areas\n\nExample: \"Street light not working for 5 days near Sector 14 market\"";
-      }
-    }
-    
-    return `❌ Invalid selection. Please choose a department number (1-${departmentsList.length}).`;
-  }
-  
-  // For other categories, use pagination
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(departmentsList.length / itemsPerPage);
-  
-  // Handle pagination
-  const normalizedMsgLower = normalizedMsg.toLowerCase();
-  if (normalizedMsgLower === 'next' && currentPage < totalPages) {
-    userState.data.currentPage = currentPage + 1;
-    return generateDepartmentListForCategory(userState.data.selectedCategory, currentPage + 1);
-  } else if (normalizedMsgLower === 'prev' && currentPage > 1) {
-    userState.data.currentPage = currentPage - 1;
-    return generateDepartmentListForCategory(userState.data.selectedCategory, currentPage - 1);
-  } 
-  // Handle department selection
-  else if (!isNaN(normalizedMsg)) {
+  if (!isNaN(normalizedMsg)) {
     const deptNumber = parseInt(normalizedMsg);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const absoluteDeptNumber = startIndex + deptNumber;
-    
-    if (deptNumber >= 1 && deptNumber <= departmentsList.length && absoluteDeptNumber <= departmentsList.length) {
-      const selectedDept = departmentsList[absoluteDeptNumber - 1];
+    if (deptNumber >= 1 && deptNumber <= departmentsList.length) {
+      const selectedDept = departmentsList[deptNumber - 1];
       userState.data.departmentId = selectedDept.department_id;
       userState.data.departmentName = selectedDept.department_name;
       userState.step = 'description';
@@ -933,27 +859,7 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
     }
   }
   
-  return `❌ Invalid selection. Please choose a department number or PREV/NEXT.`;
-};
-
-// Function to format just the "Other Government Departments" category for a single message
-const formatOtherDepartmentsForMessage = () => {
-  let message = "📋 *Other Government Departments* 📋\n\n";
-  
-  // Get departments from the "Other Government Departments" category (category 9)
-  const otherDepts = getDepartmentsByCategory("9");
-  
-  // Sort departments by ID to maintain consistent order
-  otherDepts.sort((a, b) => a.department_id - b.department_id);
-  
-  // Add all departments with abbreviations and numbering
-  otherDepts.forEach((dept, index) => {
-    message += `${index + 1}. ${dept.department_name}\n`;
-  });
-  
-  message += "\nReply with the department number for more info";
-  
-  return message;
+  return `❌ Invalid selection. Please choose a department number (1-${departmentsList.length}).`;
 };
 
 module.exports = {
@@ -966,6 +872,5 @@ module.exports = {
   getAllCategories,
   generateDepartmentCategoryList,
   generateDepartmentListForCategory,
-  handleDepartmentSelection,
-  formatOtherDepartmentsForMessage
+  handleDepartmentSelection
 };

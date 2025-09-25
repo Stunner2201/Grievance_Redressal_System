@@ -621,8 +621,7 @@ const handleWardSelection = (phoneNumber, message, userState) => {
       userState.data.wardNumber = selectedWard;
       userState.step = 'urban_colony';
       userState.data.wardColonies = wardColonies[selectedWard];
-      userState.data.currentPage = 1; // Reset page for colony selection
-      return generateColonyList(selectedWard, 1);
+      return generateColonyList(selectedWard);
     }
   }
   
@@ -636,132 +635,54 @@ const generateInvalidWard = () => {
     `Example: Type "5" for Ward-5`;
 };
 
-// Function to generate colony list (special handling for large wards)
-const generateColonyList = (wardNumber, page = 1) => {
+// Function to generate colony list (all colonies on one page)
+const generateColonyList = (wardNumber) => {
   const colonies = wardColonies[wardNumber] || [];
   if (colonies.length === 0) {
     return ` *No Colonies Found*\n\nNo colonies found for Ward-${wardNumber}.\n\nPlease contact support.`;
   }
   
-  // Special handling for wards with many colonies (9, 17, 18, 21)
-  const largeWards = ["9", "17", "18", "21"];
+  let message = ` *Ward-${wardNumber} Colonies* (${colonies.length} total)\n\n`;
+  message += `Please select your colony:\n\n`;
   
-  if (largeWards.includes(wardNumber)) {
-    // Show all colonies on one page for large wards
-    let message = ` *Ward-${wardNumber} Colonies* (${colonies.length} total)\n\n`;
-    message += `Please select your colony:\n\n`;
+  colonies.forEach((colony, index) => {
+    // Shorten colony names for better display
+    let shortColony = colony;
     
-    colonies.forEach((colony, index) => {
-      // Shorten colony names aggressively for large wards
-      let shortColony = colony;
-      
-      // Special shortening for specific large wards
-      if (wardNumber === "9") {
-        shortColony = colony
-          .replace("Surya Nagar Ladhot Rd", "Surya Ngr Ladhot")
-          .replace("Chhotu Ram Nagar", "Chhotu Ram Ngr")
-          .replace("Kabir Colony", "Kabir Col")
-          .replace("Parvesh Nagar", "Parvesh Ngr")
-          .replace("Rajinder Nagar", "Rajinder Ngr")
-          .replace("Sector 3,4,5,6", "Sec 3-6")
-          .replace("Rishi Nagar Ext", "Rishi Ngr Ext")
-          .replace("Shastri Nagar", "Shastri Ngr")
-          .replace("Nagar", "Ngr")
-          .replace("Colony", "Col");
-      } else if (wardNumber === "17") {
-        shortColony = colony
-          .replace("HUDA Complex HSVP", "HUDA Cmp")
-          .replace("Ramsukh Dass Colony", "Ramsukh Col")
-          .replace("Vinay Nagar HUDA", "Vinay Ngr")
-          .replace("Nagar", "Ngr")
-          .replace("Colony", "Col")
-          .replace("Mohalla", "Mhl");
-      } else if (wardNumber === "18") {
-        shortColony = colony
-          .replace("New Aggarsain Colony", "New Aggarsain Col")
-          .replace("New Janta Colony", "New Janta Col")
-          .replace("Rajendra Colony", "Rajendra Col")
-          .replace("Nagar", "Ngr")
-          .replace("Colony", "Col");
-      } else if (wardNumber === "21") {
-        shortColony = colony
-          .replace("Ambedkar Colony", "Ambedkar Col")
-          .replace("Chhotu Ram Colony", "Chhotu Ram Col")
-          .replace("Sheetal Nagar", "Sheetal Ngr")
-          .replace("New Vijay Nagar", "New Vijay Ngr")
-          .replace("Nagar", "Ngr")
-          .replace("Colony", "Col");
-      }
-      
-      // Limit length
-      if (shortColony.length > 20) {
-        shortColony = shortColony.substring(0, 17) + '...';
-      }
-      
-      message += `${index + 1}. ${shortColony}\n`;
-    });
+    // Apply aggressive shortening for better display
+    shortColony = shortColony
+      .replace("Surya Nagar", "Surya Ngr")
+      .replace("Chhotu Ram Nagar", "Chhotu Ram Ngr")
+      .replace("Kabir Colony", "Kabir Col")
+      .replace("Parvesh Nagar", "Parvesh Ngr")
+      .replace("Rajinder Nagar", "Rajinder Ngr")
+      .replace("Sector 3,4,5,6", "Sec 3-6")
+      .replace("Rishi Nagar Ext", "Rishi Ngr Ext")
+      .replace("Shastri Nagar", "Shastri Ngr")
+      .replace("Nagar", "Ngr")
+      .replace("Colony", "Col")
+      .replace("Mohalla", "Mhl")
+      .replace("Complex", "Cmp");
     
-    message += `\nReply with the *colony number*`;
+    // Limit length
+    if (shortColony.length > 25) {
+      shortColony = shortColony.substring(0, 22) + '...';
+    }
     
-    return message;
-  }
-  
-  // For other wards, use pagination
-  const itemsPerPage = 15;
-  const totalPages = Math.ceil(colonies.length / itemsPerPage);
-  const startIndex = (page - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, colonies.length);
-  const currentColonies = colonies.slice(startIndex, endIndex);
-  
-  let message = ` *Colony Selection for Ward-${wardNumber}*`;
-  if (totalPages > 1) {
-    message += ` (Page ${page}/${totalPages})`;
-  }
-  message += `\n\n`;
-  
-  currentColonies.forEach((colony, index) => {
-    const shortColony = shortenColonyName(colony);
-    message += `${startIndex + index + 1}. ${shortColony}\n`;
+    message += `${index + 1}. ${shortColony}\n`;
   });
-  
-  message += `\n`;
   
   message += `\nReply with the *colony number*`;
   
   return message;
 };
 
-// Function to handle colony pagination
-const handleColonyPagination = (phoneNumber, message, wardNumber, currentPage, userState) => {
-  const normalizedMsg = message.trim().toLowerCase();
+// Function to handle colony selection
+const handleColonySelection = (phoneNumber, message, wardNumber, userState) => {
+  const normalizedMsg = message.trim();
   const colonies = wardColonies[wardNumber] || [];
   
-  // Special handling for large wards (no pagination)
-  const largeWards = ["9", "17", "18", "21"];
-  if (largeWards.includes(wardNumber)) {
-    if (!isNaN(normalizedMsg)) {
-      const colonyNumber = parseInt(normalizedMsg);
-      if (colonyNumber >= 1 && colonyNumber <= colonies.length) {
-        userState.data.colony = colonies[colonyNumber - 1];
-        userState.step = 'landmark';
-        return askForLandmark;
-      }
-    }
-    
-    return generateInvalidColony(wardNumber);
-  }
-  
-  // For other wards, use pagination
-  const itemsPerPage = 15;
-  const totalPages = Math.ceil(colonies.length / itemsPerPage);
-  
-  if (normalizedMsg === 'next' && currentPage < totalPages) {
-    userState.data.currentPage = currentPage + 1;
-    return generateColonyList(wardNumber, currentPage + 1);
-  } else if (normalizedMsg === 'prev' && currentPage > 1) {
-    userState.data.currentPage = currentPage - 1;
-    return generateColonyList(wardNumber, currentPage - 1);
-  } else if (!isNaN(normalizedMsg)) {
+  if (!isNaN(normalizedMsg)) {
     const colonyNumber = parseInt(normalizedMsg);
     if (colonyNumber >= 1 && colonyNumber <= colonies.length) {
       userState.data.colony = colonies[colonyNumber - 1];
@@ -770,27 +691,15 @@ const handleColonyPagination = (phoneNumber, message, wardNumber, currentPage, u
     }
   }
   
-  return generateInvalidColony(wardNumber, currentPage);
+  return generateInvalidColony(wardNumber);
 };
 
 // Function to generate invalid colony message
-const generateInvalidColony = (wardNumber, currentPage = 1) => {
+const generateInvalidColony = (wardNumber) => {
   const colonies = wardColonies[wardNumber] || [];
-  
-  // Special handling for large wards
-  const largeWards = ["9", "17", "18", "21"];
-  if (largeWards.includes(wardNumber)) {
-    return ` *Invalid Selection*\n\n` +
-      `Please select a colony number (1-${colonies.length})\n\n` +
-      `Current ward: Ward-${wardNumber}`;
-  }
-  
-  // For other wards
-  const itemsPerPage = 15;
-  const totalPages = Math.ceil(colonies.length / itemsPerPage);
-  
   return ` *Invalid Selection*\n\n` +
-    `Please select a colony number (1-${colonies.length})`;
+    `Please select a colony number (1-${colonies.length})\n\n` +
+    `Current ward: Ward-${wardNumber}`;
 };
 
 // ========================
@@ -851,7 +760,7 @@ const generateVillageList = (block) => {
   return message;
 };
 
-// Function to handle village selection (no pagination needed)
+// Function to handle village selection
 const handleVillageSelection = (phoneNumber, message, block, userState) => {
   const normalizedMsg = message.trim();
   const villages = blockVillages[block] || [];
@@ -897,36 +806,23 @@ const generateDepartmentCategoryList = () => {
 };
 
 // Function to generate department list for a specific category
-const generateDepartmentListForCategory = (categoryId, page = 1) => {
+const generateDepartmentListForCategory = (categoryId) => {
   const category = departmentData.departmentCategories[categoryId];
   if (!category) return ` Invalid category selection`;
   
   const departments = departmentData.getDepartmentsByCategory(categoryId);
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(departments.length / itemsPerPage);
-  const startIndex = (page - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, departments.length);
-  const currentDepartments = departments.slice(startIndex, endIndex);
   
-  let message = ` ${category.name}`;
-  if (totalPages > 1) {
-    message += ` (Page ${page}/${totalPages})`;
-  }
-  message += `\n\n`;
+  let message = ` ${category.name}\n\n`;
   
-  currentDepartments.forEach((dept, index) => {
-    message += `${startIndex + index + 1}. ${dept.department_name}\n`;
+  departments.forEach((dept, index) => {
+    message += `${index + 1}. ${dept.department_name}\n`;
   });
-  
-  message += `\n`;
   
   message += `\nReply with the *department number*`;
   
   return message;
 };
 
-// Function to handle department selection with categories
-// Function to handle department selection with categories
 // Function to handle department selection with categories
 const handleDepartmentSelection = (phoneNumber, message, userState) => {
   const normalizedMsg = message.trim();
@@ -935,8 +831,7 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
   if (!userState.data.selectedCategory) {
     if (departmentData.departmentCategories[normalizedMsg]) {
       userState.data.selectedCategory = normalizedMsg;
-      userState.data.currentPage = 1;
-      return generateDepartmentListForCategory(normalizedMsg, 1);
+      return generateDepartmentListForCategory(normalizedMsg);
     } else {
       return ` Invalid category. Please select 1-9.\n\n` + generateDepartmentCategoryList();
     }
@@ -944,30 +839,12 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
   
   // If we're selecting a department from a category (second step)
   const departments = departmentData.getDepartmentsByCategory(userState.data.selectedCategory);
-  const currentPage = userState.data.currentPage || 1;
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(departments.length / itemsPerPage);
   
-  // Handle pagination
-  const normalizedMsgLower = normalizedMsg.toLowerCase();
-  if (normalizedMsgLower === 'next' && currentPage < totalPages) {
-    userState.data.currentPage = currentPage + 1;
-    return generateDepartmentListForCategory(userState.data.selectedCategory, currentPage + 1);
-  } else if (normalizedMsgLower === 'prev' && currentPage > 1) {
-    userState.data.currentPage = currentPage - 1;
-    return generateDepartmentListForCategory(userState.data.selectedCategory, currentPage - 1);
-  } 
-  // Handle department selection
-  else if (!isNaN(normalizedMsg)) {
+  if (!isNaN(normalizedMsg)) {
     const deptNumber = parseInt(normalizedMsg);
-    const startIndex = (currentPage - 1) * itemsPerPage;
     
-    // CORRECTED LINE - removed corrupted variable name
-    // const absoluteDeptNumber = startIndex + deptNumber;
-    const absoluteDeptNumber=startIndex+deptNumber;
-    
-    if (deptNumber >= 1 && deptNumber <= itemsPerPage && absoluteDeptNumber <= departments.length) {
-      const selectedDept = departments[absoluteDeptNumber - 1];
+    if (deptNumber >= 1 && deptNumber <= departments.length) {
+      const selectedDept = departments[deptNumber - 1];
       userState.data.departmentId = selectedDept.department_id;
       userState.data.departmentName = selectedDept.department_name;
       userState.step = 'description';
@@ -975,8 +852,9 @@ const handleDepartmentSelection = (phoneNumber, message, userState) => {
     }
   }
   
-  return ` Invalid selection. Please choose a department number between 1 and ${Math.min(itemsPerPage, departments.length - startIndex)}.`;
+  return ` Invalid selection. Please choose a department number between 1 and ${departments.length}.`;
 };
+
 // Function to generate invalid category message
 const generateInvalidCategory = () => {
   return ` *Invalid Category Selection*\n\n` +
@@ -1167,7 +1045,7 @@ module.exports = {
   generateColonyList,
   generateInvalidColony,
   handleWardSelection,
-  handleColonyPagination,
+  handleColonySelection,
   wards,
   wardColonies,
 
@@ -1177,7 +1055,7 @@ module.exports = {
   generateVillageList,
   generateInvalidVillage,
   handleBlockSelection,
-  handleVillageSelection, // Updated to handle village selection without pagination
+  handleVillageSelection,
   blocks,
   blockVillages,
 

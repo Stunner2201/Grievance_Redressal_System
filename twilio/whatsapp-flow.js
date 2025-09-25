@@ -144,14 +144,12 @@ const handleRegistration = async (phoneNumber, message, normalizedMsg) => {
       return templates.handleWardSelection(phoneNumber, message, state);
 
     case 'urban_colony':
-      // Removed pagination parameter
       return templates.handleColonySelection(phoneNumber, message, state.data.wardNumber, state);
 
     case 'rural_block':
       return templates.handleBlockSelection(phoneNumber, message, state);
 
     case 'rural_village':
-      // FIXED: Pass the user state correctly
       return templates.handleVillageSelection(phoneNumber, message, state.data.block, state);
 
     case 'landmark':
